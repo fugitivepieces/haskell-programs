@@ -29,7 +29,7 @@ play word = do putStr "? "
                   putStrLn "You got it!!"
                else
                   do putStrLn (match word guess)
-                    play word
+                     play word
 
--- match :: String -> String -> String
--- match xs ys = 
+match :: String -> String -> String
+match xs ys = [if elem x ys then x else '-' | x <- xs]
