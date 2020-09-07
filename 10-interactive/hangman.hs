@@ -1,4 +1,5 @@
 import System.IO
+import Utils
 
 hangman :: IO ()
 hangman = do putStrLn "Think of a word:"
@@ -15,12 +16,6 @@ sgetLine = do x <- getCh
                 do putChar '-'
                    xs <- sgetLine
                    return (x:xs)
-
-getCh :: IO Char
-getCh = do hSetEcho stdin False
-           x <- getChar
-           hSetEcho stdin True
-           return x
 
 play :: String -> IO ()
 play word = do putStr "? "
