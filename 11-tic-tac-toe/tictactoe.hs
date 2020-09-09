@@ -35,7 +35,7 @@ wins p g = any line (rows ++ cols ++ dias)
                   dias = [diag g, diag (map reverse g)]
 
 diag :: Grid -> [Player]
-diag g = [g !! n !! n | n <- [1..size-1]]
+diag g = [g !! n !! n | n <- [0..size-1]]
 
 won :: Grid -> Bool
 won g = wins O g || wins X g
@@ -131,3 +131,42 @@ prune n (Node x ts) = Node x [prune (n-1) t | t <- ts]
 
 depth :: Int
 depth = 9
+
+minimax :: Tree Grid -> Tree (Grid, Player)
+minimax (Node g [])
+    | wins O g  = Node (g,O) []
+    | wins X g  = Node (g,X) []
+    | otherwise = Node (g,B) []
+minimax (Node g ts)
+    | turn g == O = Node (g,minimum ps) ts'
+    | turn g == X = Node (g,maximum ps) ts'
+                    where ts' = map minimax ts
+                          ps = [p | Node (_,p) _ <- ts']
+
+bestmove :: Grid -> Player -> Grid
+bestmove g p = head [g' | Node (g',p') _ <- ts, p' == best]
+                where
+                  tree = prune depth (gametree g p)
+                  Node (_,best) ts = minimax tree
+
+main :: IO ()
+main = do hSetBuffering stdout NoBuffering
+          play empty O
+
+play :: Grid -> Player -> IO ()
+play g p = do cls
+              putGrid g
+              play' g p
+
+play' :: Grid -> Player -> IO ()
+play' g p
+    | wins O g = putStrLn "Player O wins!"
+    | wins X g = putStrLn "Player X wins!"
+    | full g   = putStrLn "It's a draw!"
+    | p == O   = do i <- getNat (prompt p)
+                    case move g i p of
+                      [] -> do putStrLn "ERROR: Invalid move"
+                               play' g p
+                      g' -> play g' (next p)
+    | p == X   = do putStr "Player X is thinking..."
+                    (play $! (bestmove g p)) (next p)
