@@ -113,11 +113,17 @@ prompt p = "Player " ++ show p ++ ", enter your move: "
 data Tree a = Node a [Tree a]
               deriving Show
 
+root :: Tree a -> a
+root (Node n _) = n
+
 numNodes :: Tree a -> Int
 numNodes (Node _ xs) = 1 + sum (map numNodes xs)
 
 gametree :: Grid -> Player -> Tree Grid
 gametree g p = Node g [gametree g' (next p) | g' <- moves g p]
+
+walk :: Grid -> Tree Grid -> Tree Grid
+walk g (Node _ ts) = head [t | t <- ts, root t == g]
 
 moves :: Grid -> Player -> [Grid]
 moves g p
@@ -143,34 +149,34 @@ minimax f (Node g ts)
                     where ts' = map (minimax f) ts
                           ps = [p | Node (_,p) _ <- ts']
 
-bestmove :: Grid -> Player -> Player -> Grid
-bestmove g p f = head [g' | Node (g',p') ts' <- ts, p' == best]
+bestmove :: Grid -> Player -> Player -> Tree Grid -> Grid
+bestmove g p f t = head [g' | Node (g',p') ts' <- ts, p' == best]
                 where
-                  tree = prune depth (gametree g p)
-                  Node (_,best) ts = minimax f tree
+                  Node (_,best) ts = minimax f t
 
 main :: IO ()
 main = do putStr "Play first? [Y/n] "
           c <- getChar
           hSetBuffering stdout NoBuffering
           case c of
-            'Y' -> do play empty O O
-            'n' -> do play empty X X
+            'Y' -> do play empty O O (prune depth (gametree empty O))
+            'n' -> do play empty X X (prune depth (gametree empty X))
 
-play :: Grid -> Player -> Player -> IO ()
-play g p f = do cls
-                putGrid g
-                play' g p f
+play :: Grid -> Player -> Player -> Tree Grid -> IO ()
+play g p f t = do cls
+                  putGrid g
+                  play' g p f t
 
-play' :: Grid -> Player -> Player -> IO ()
-play' g p f
+play' :: Grid -> Player -> Player -> Tree Grid -> IO ()
+play' g p f t
     | wins O g = putStrLn "Player O wins!"
     | wins X g = putStrLn "Player X wins!"
     | full g   = putStrLn "It's a draw!"
     | p == O   = do i <- getNat (prompt p)
                     case move g i p of
                       [] -> do putStrLn "ERROR: Invalid move"
-                               play' g p f
-                      g' -> play g' (next p) f
+                               play' g p f t
+                      g' -> play g' (next p) f (walk g' t)
     | p == X   = do putStr "Player X is thinking..."
-                    (play $! (bestmove g p f)) (next p) f
+                    (play $! g') (next p) f (walk g' t)
+                      where g' = bestmove g p f t
