@@ -21,8 +21,8 @@ empty = replicate size (replicate size B)
 full :: Grid -> Bool
 full = all (/= B) . concat
 
-turn :: Grid -> Player
-turn g = if os <= xs then O else X
+turn :: Grid -> Player -> Player
+turn g f = if os < xs then O else if os == xs then f else X
           where os = length (filter (== O) ps)
                 xs = length (filter (== X) ps)
                 ps = concat g
@@ -102,7 +102,7 @@ run' g p | wins O g = putStrLn "Player O wins!"
         | full g   = putStrLn "It's a draw!"
         | otherwise =
            do i <- getNat (prompt p)
-              case move g i p of 
+              case move g i p of
                 [] -> do putStrLn "Error: Invalid move"
                          run' g p
                 g' -> run g' (next p)
@@ -132,41 +132,45 @@ prune n (Node x ts) = Node x [prune (n-1) t | t <- ts]
 depth :: Int
 depth = 9
 
-minimax :: Tree Grid -> Tree (Grid, Player)
-minimax (Node g [])
+minimax :: Player -> Tree Grid -> Tree (Grid, Player)
+minimax f (Node g [])
     | wins O g  = Node (g,O) []
     | wins X g  = Node (g,X) []
     | otherwise = Node (g,B) []
-minimax (Node g ts)
-    | turn g == O = Node (g,minimum ps) ts'
-    | turn g == X = Node (g,maximum ps) ts'
-                    where ts' = map minimax ts
+minimax f (Node g ts)
+    | turn g f == O = Node (g,minimum ps) ts'
+    | turn g f == X = Node (g,maximum ps) ts'
+                    where ts' = map (minimax f) ts
                           ps = [p | Node (_,p) _ <- ts']
 
-bestmove :: Grid -> Player -> Grid
-bestmove g p = head [g' | Node (g',p') _ <- ts, p' == best]
+bestmove :: Grid -> Player -> Player -> Grid
+bestmove g p f = head [g' | Node (g',p') ts' <- ts, p' == best]
                 where
                   tree = prune depth (gametree g p)
-                  Node (_,best) ts = minimax tree
+                  Node (_,best) ts = minimax f tree
 
 main :: IO ()
-main = do hSetBuffering stdout NoBuffering
-          play empty O
+main = do putStr "Play first? [Y/n] "
+          c <- getChar
+          hSetBuffering stdout NoBuffering
+          case c of
+            'Y' -> do play empty O O
+            'n' -> do play empty X X
 
-play :: Grid -> Player -> IO ()
-play g p = do cls
-              putGrid g
-              play' g p
+play :: Grid -> Player -> Player -> IO ()
+play g p f = do cls
+                putGrid g
+                play' g p f
 
-play' :: Grid -> Player -> IO ()
-play' g p
+play' :: Grid -> Player -> Player -> IO ()
+play' g p f
     | wins O g = putStrLn "Player O wins!"
     | wins X g = putStrLn "Player X wins!"
     | full g   = putStrLn "It's a draw!"
     | p == O   = do i <- getNat (prompt p)
                     case move g i p of
                       [] -> do putStrLn "ERROR: Invalid move"
-                               play' g p
-                      g' -> play g' (next p)
+                               play' g p f
+                      g' -> play g' (next p) f
     | p == X   = do putStr "Player X is thinking..."
-                    (play $! (bestmove g p)) (next p)
+                    (play $! (bestmove g p f)) (next p) f
