@@ -149,10 +149,30 @@ minimax f (Node g ts)
                     where ts' = map (minimax f) ts
                           ps = [p | Node (_,p) _ <- ts']
 
+-- minimax with alpha-beta pruning
+minimax_ab :: Player -> Tree Grid -> Player -> Player -> Tree (Grid, Player)
+minimax_ab f (Node g []) a b
+    | wins O g  = Node (g,O) []
+    | wins X g  = Node (g,X) []
+    | otherwise = Node (g,B) []
+minimax_ab f (Node g (t:ts)) a b = case turn g f of 
+    O -> if a >= b then Node (g,b) [] else Node (g,minimum (p:ps)) (t':ts')
+        where t' = minimax_ab f t a b
+              Node (_,p) _ = t'
+              b' = minimum [b,p]
+              ts' = map (\t -> minimax_ab f t a b') ts
+              ps = [p | Node (_,p) _ <- ts']
+    X -> if a >= b then Node (g,a) [] else Node (g,maximum (p:ps)) (t':ts')
+        where t' = minimax_ab f t a b
+              Node (_,p) _ = t'
+              a' = maximum [a,p]
+              ts' = map (\t -> minimax_ab f t a' b) ts
+              ps = [p | Node (_,p) _ <- ts']
+
 bestmove :: Grid -> Player -> Player -> Tree Grid -> Grid
 bestmove g p f t = head [g' | Node (g',p') ts' <- ts, p' == best]
                 where
-                  Node (_,best) ts = minimax f t
+                  Node (_,best) ts = minimax_ab f t O X
 
 main :: IO ()
 main = do putStr "Play first? [Y/n] "
