@@ -6,6 +6,8 @@ instance Functor Tree where
   fmap f Leaf = Leaf
   fmap f (Node l x r) = Node (fmap f l) (f x) (fmap f r)
 
+{- Create a newtype Ntype that wraps the partially-applied
+ - function type to avoid duplicate definition with GHC.Base -}
 data Ntype a b = N (a -> b)
 app :: (Ntype a b) -> a -> b
 app (N f) = f
@@ -37,3 +39,12 @@ instance Applicative ZipList where
 
   -- <*> ZipList (a -> b) -> ZipList a -> ZipList b
   (Z gs) <*> (Z xs) = Z [g x | (g,x) <- zip gs xs]
+
+data Expr a = Var a | Val Int | Add (Expr a) (Expr a)
+  deriving Show
+
+instance Functor Expr where
+  -- fmap :: (a -> b) -> Expr a -> Expr b
+  fmap f (Var x) = Var (f x)
+  fmap f (Val n) = Val n
+  fmap f (Add x y) = Add (fmap f x) (fmap f y)
