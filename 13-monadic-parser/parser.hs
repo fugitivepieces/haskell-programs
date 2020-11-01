@@ -1,3 +1,5 @@
+module Parser where
+
 import Control.Applicative
 import Data.Char
 
@@ -68,3 +70,67 @@ string [] = return []
 string (x:xs) = do char x
                    string xs
                    return (x:xs)
+
+ident :: Parser String
+ident = do x <- lower
+           xs <- many alphanum
+           return (x:xs)
+
+nat :: Parser Int
+nat = do xs <- some digit
+         return (read xs)
+
+space :: Parser ()
+space = do many (sat isSpace)
+           return ()
+
+int :: Parser Int
+int = nat <|>
+      do char '-'
+         n <- nat
+         return (-n)
+
+token :: Parser a -> Parser a
+token p = do space
+             v <- p
+             space
+             return v
+
+identifier :: Parser String
+identifier = token ident
+
+natural :: Parser Int
+natural = token nat
+
+integer :: Parser Int
+integer = token int
+
+symbol :: String -> Parser String
+symbol xs = token (string xs)
+
+expr :: Parser Int
+expr = do t <- term
+          do symbol "+"
+             e <- expr
+             return (t + e)
+           <|> return t
+
+term :: Parser Int
+term = do f <- factor
+          do symbol "*"
+             t <- term
+             return (f * t)
+           <|> return f
+
+factor :: Parser Int
+factor = do symbol "("
+            e <- expr
+            symbol ")"
+            return e
+         <|> nat
+
+-- eval :: String -> Int
+-- eval xs = case (parse expr xs) of
+--             [(n, [])] -> n
+--             [(_, out)] -> error ("Unused input " ++ out)
+--             [] -> error "Invalid input"
