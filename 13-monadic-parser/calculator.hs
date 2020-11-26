@@ -28,6 +28,8 @@ showbox = sequence_ [writeat (1,y) b | (y,b) <- zip [1..] box]
 display xs = do writeat (3,2) (replicate 13 ' ')
                 writeat (3,2) (reverse (take 13 (reverse xs)))
 
+display_below xs = do writeat (1,14) xs
+
 calc :: String -> IO ()
 calc xs = do display xs
              c <- getCh
@@ -52,10 +54,15 @@ delete [] = calc []
 delete xs = calc (init xs)
 
 eval :: String -> IO ()
-eval xs = case (parse expr xs) of 
-            [(n,[])] -> calc (show n)
-            _ -> do beep
-                    calc xs
+eval xs = case (parse expr xs) of
+            [(n,[])] -> do writeat (1,14) (replicate 13 ' ')
+                           calc (show n)
+            [(_,ys)] -> do beep
+                           display_below ("Error at: " ++ show (length xs - length ys))
+                           calc xs
+            [] -> do beep
+                     display_below "Error at: 0"
+                     calc xs
 
 clear :: IO ()
 clear = calc ""
